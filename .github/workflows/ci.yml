@@ -1,0 +1,73 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: test ${{ matrix.rust }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - 1.89
+          - 1.90
+          - stable
+          - nightly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust }}
+      - uses: taiki-e/install-action@cargo-audit
+        if: matrix.rust == 'stable'
+      - name: Check no features
+        run: | 
+          cargo check 
+      - name: Check all features
+        run: | 
+          cargo check --all-features
+      - name: Check no features
+        run: | 
+          cargo check 
+      - name: Check tokio-channels-console feature
+        run: | 
+          cargo check --features tokio-channels-console
+      - name: Fmt
+        if: matrix.rust == 'stable'
+        run: |
+          cargo fmt --all --check
+      - name: Lint (default features)
+        if: matrix.rust == 'stable'
+        run: |
+          cargo clippy --all -- -D warnings
+      - name: Lint (tokio-channels-console feature)
+        if: matrix.rust == 'stable'
+        run: |
+          cargo clippy --all --features tokio-channels-console -- -D warnings
+      - name: Lint (all features)
+        if: matrix.rust == 'stable'
+        run: |
+          cargo clippy --all --all-features -- -D warnings
+      - name: Audit
+        if: matrix.rust == 'stable'
+        run: |
+          cargo audit --ignore RUSTSEC-2023-0071
+      - name: Run doc tests
+        run: |
+          cargo test --doc --features=tokio-channels-console -p tokio-channels-console
+      - name: Run lib tests
+        run: | 
+          cargo test --lib --features tokio-channels-console
+      - name: Run integration tests
+        run: | 
+          cargo test --test cli_tests -- --nocapture --test-threads=1

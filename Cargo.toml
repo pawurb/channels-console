@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/tokio-channels-console",
+    "crates/tokio-channels-console-test",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio-channels-console = { path = "./crates/tokio-channels-console", version = "0.0.1" }
