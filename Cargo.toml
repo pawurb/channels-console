@@ -6,4 +6,4 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-tokio-channels-console = { path = "./crates/tokio-channels-console", version = "0.0.1" }
+tokio-channels-console = { path = "./crates/tokio-channels-console", version = "0.1.0" }
