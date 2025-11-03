@@ -60,8 +60,8 @@ where
             // Try to receive with timeout to periodically check close signal
             match to_inner_rx.recv_timeout(std::time::Duration::from_millis(10)) {
                 Ok(msg) => {
-                    if let Some(log_msg) = log_on_send(&msg) {
-                        // eprintln!("[{}] SEND: {}", channel_id, log_msg);
+                    if let Some(msg_log) = log_on_send(&msg) {
+                        // eprintln!("[{}] SEND: {}", channel_id, msg_log);
                     }
                     if inner_tx.send(msg).is_err() {
                         // Inner receiver dropped
@@ -86,8 +86,8 @@ where
     // Forward inner -> outer (proxy the recv path)
     std::thread::spawn(move || {
         while let Ok(msg) = inner_rx.recv() {
-            if let Some(log_msg) = log_on_recv(&msg) {
-                // eprintln!("[{}] RECV: {}", channel_id, log_msg);
+            if let Some(msg_log) = log_on_recv(&msg) {
+                // eprintln!("[{}] RECV: {}", channel_id, msg_log);
             }
             if from_inner_tx.send(msg).is_err() {
                 // Outer receiver was closed
@@ -187,8 +187,8 @@ where
             // Try to receive with timeout to periodically check close signal
             match to_inner_rx.recv_timeout(std::time::Duration::from_millis(10)) {
                 Ok(msg) => {
-                    if let Some(log_msg) = log_on_send(&msg) {
-                        // eprintln!("[{}] SEND: {}", channel_id, log_msg);
+                    if let Some(msg_log) = log_on_send(&msg) {
+                        // eprintln!("[{}] SEND: {}", channel_id, msg_log);
                     }
                     if inner_tx.send(msg).is_err() {
                         // Inner receiver dropped
@@ -213,8 +213,8 @@ where
     // Forward inner -> outer (proxy the recv path)
     std::thread::spawn(move || {
         while let Ok(msg) = inner_rx.recv() {
-            if let Some(log_msg) = log_on_recv(&msg) {
-                // eprintln!("[{}] RECV: {}", channel_id, log_msg);
+            if let Some(msg_log) = log_on_recv(&msg) {
+                // eprintln!("[{}] RECV: {}", channel_id, msg_log);
             }
             if from_inner_tx.send(msg).is_err() {
                 // Outer receiver was closed

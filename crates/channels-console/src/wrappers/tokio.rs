@@ -49,8 +49,8 @@ where
                 msg = to_inner_rx.recv() => {
                     match msg {
                         Some(msg) => {
-                            if let Some(log_msg) = log_on_send(&msg) {
-                                // eprintln!("[{}] SEND: {}", channel_id, log_msg);
+                            if let Some(msg_log) = log_on_send(&msg) {
+                                // eprintln!("[{}] SEND: {}", channel_id, msg_log);
                             }
                             if inner_tx.send(msg).await.is_err() {
                                 to_inner_rx.close();
@@ -79,8 +79,8 @@ where
                 msg = inner_rx.recv() => {
                     match msg {
                         Some(msg) => {
-                            if let Some(log_msg) = log_on_recv(&msg) {
-                                // eprintln!("[{}] RECV: {}", channel_id, log_msg);
+                            if let Some(msg_log) = log_on_recv(&msg) {
+                                // eprintln!("[{}] RECV: {}", channel_id, msg_log);
                             }
                             if from_inner_tx.send(msg).await.is_ok() {
                                 let _ = stats_tx_recv.send(StatsEvent::MessageReceived { id: channel_id });
@@ -173,8 +173,8 @@ where
                 msg = to_inner_rx.recv() => {
                     match msg {
                         Some(msg) => {
-                            if let Some(log_msg) = log_on_send(&msg) {
-                                // eprintln!("[{}] SEND: {}", channel_id, log_msg);
+                            if let Some(msg_log) = log_on_send(&msg) {
+                                // eprintln!("[{}] SEND: {}", channel_id, msg_log);
                             }
                             if inner_tx.send(msg).is_err() {
                                 to_inner_rx.close();
@@ -203,8 +203,8 @@ where
                 msg = inner_rx.recv() => {
                     match msg {
                         Some(msg) => {
-                            if let Some(log_msg) = log_on_recv(&msg) {
-                                // eprintln!("[{}] RECV: {}", channel_id, log_msg);
+                            if let Some(msg_log) = log_on_recv(&msg) {
+                                // eprintln!("[{}] RECV: {}", channel_id, msg_log);
                             }
                             if from_inner_tx.send(msg).is_ok() {
                                 let _ = stats_tx_recv.send(StatsEvent::MessageReceived { id: channel_id });
@@ -299,8 +299,8 @@ where
                 // Message received from inner
                 match msg {
                     Ok(msg) => {
-                        if let Some(log_msg) = log_on_recv(&msg) {
-                            // eprintln!("[{}] RECV: {}", channel_id, log_msg);
+                        if let Some(msg_log) = log_on_recv(&msg) {
+                            // eprintln!("[{}] RECV: {}", channel_id, msg_log);
                         }
                         if inner_tx_proxy.send(msg).is_ok() {
                             let _ = stats_tx_recv.send(StatsEvent::MessageReceived { id: channel_id });
@@ -331,8 +331,8 @@ where
             msg = outer_rx_proxy => {
                 match msg {
                     Ok(msg) => {
-                        if let Some(log_msg) = log_on_send(&msg) {
-                            // eprintln!("[{}] SEND: {}", channel_id, log_msg);
+                        if let Some(msg_log) = log_on_send(&msg) {
+                            // eprintln!("[{}] SEND: {}", channel_id, msg_log);
                         }
                         if inner_tx.send(msg).is_ok() {
                             let _ = stats_tx_send.send(StatsEvent::MessageSent { id: channel_id });
