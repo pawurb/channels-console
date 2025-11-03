@@ -3,7 +3,9 @@
 
 ![Console TUI Example](console-tui2.gif)
 
-This crate provides an easy-to-configure way to monitor [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio) and [futures-rs](https://github.com/rust-lang/futures-rs) channels (more flavors soon!). Track per-channel metrics such as queue depth, send/receive rates, and memory usage, directly from your terminal.
+A lightweight, easy-to-use tool for real-time visibility into your Rust channels. Track queue depth, throughput, and memory usage to instantly spot slow consumers, overloaded producers, or capacity issues.
+
+Supports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio) and [futures-rs](https://github.com/rust-lang/futures-rs) channels - with more on the way.
 
 ## Features
 
@@ -18,7 +20,7 @@ This crate provides an easy-to-configure way to monitor [std::sync](https://doc.
 `Cargo.toml`
 
 ```toml
-channels-console = { version = "0.1", optional = true, features=['tokio', 'futures'] }
+channels-console = { version = "0.2", optional = true, features=['tokio', 'futures'] }
 
 [features]
 channels-console = ["dep:channels-console"]
