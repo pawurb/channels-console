@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-11-03
+
+### 🚀 Features
+
+- Use separate runtime
+- Add support for std::sync and futures channels
+
+### ⚙️ Miscellaneous Tasks
+
+- Rename to channels console
+- Release 0.2.0
+
 ## [0.1.0] - 2025-11-02
+
+### 🐛 Bug Fixes
+
+- Fix readme path
 
 ### ⚙️ Miscellaneous Tasks
 
