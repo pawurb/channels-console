@@ -1,9 +1,9 @@
-# Real-time monitoring and metrics for Rust channels
+# Real-time monitoring, metrics and logs for Rust channels
 [![Latest Version](https://img.shields.io/crates/v/channels-console.svg)](https://crates.io/crates/channels-console) [![GH Actions](https://github.com/pawurb/channels-console/actions/workflows/ci.yml/badge.svg)](https://github.com/pawurb/channels-console/actions)
 
 ![Console TUI Example](console-tui2.gif)
 
-A lightweight, easy-to-use tool for real-time visibility into your Rust channels. Track queue depth, throughput, and memory usage to instantly spot slow consumers, overloaded producers, or capacity issues.
+A lightweight, easy-to-use tool for real-time visibility into your Rust channels. Track queue depth, processing delay, throughput, and memory usage. Instantly spot slow consumers, overloaded producers, or capacity issues.
 
 Supports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio) and [futures-rs](https://github.com/rust-lang/futures-rs) channels - with more on the way.
 
@@ -193,6 +193,18 @@ let (tx, rx) = channels_console::instrument!((tx, rx), capacity = 10);
 
 Tokio channels don't require the capacity parameter because their capacity is accessible from the channel handles.
 
+**Message Logging:**
+
+By default, instrumentation only tracks message timestamps. To capture the actual content of messages for debugging, enable logging with the `log = true` parameter (the message type must implement `std::fmt::Debug`):
+
+```rust
+use tokio::sync::mpsc;
+
+let (tx, rx) = mpsc::channel::<String>(10);
+#[cfg(feature = "channels-console")]
+let (tx, rx) = channels_console::instrument!((tx, rx), log = true);
+```
+
 ### `ChannelsGuard` - Printing Statistics on Drop
 
 Similar to the [hotpath API](https://github.com/pawurb/hotpath) the `ChannelsGuard` is a RAII guard that automatically prints channel statistics when dropped (typically at program end). This is useful for debugging and getting a summary of channel usage.
@@ -251,7 +263,7 @@ async fn main() {
 
 ### Metrics Server Port
 
-The HTTP metrics server runs on port `6770` by default. You can customize this using the `channels_console_METRICS_PORT` environment variable:
+The HTTP metrics server runs on port `6770` by default. You can customize this using the `CHANNELS_CONSOLE_METRICS_PORT` environment variable:
 
 ```bash
 CHANNELS_CONSOLE_METRICS_PORT=8080 cargo run --features channels-console

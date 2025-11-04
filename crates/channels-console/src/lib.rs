@@ -12,10 +12,25 @@ mod http_api;
 mod wrappers;
 
 /// A single log entry for a message sent or received.
-#[derive(Debug, Clone)]
-pub(crate) struct LogEntry {
-    pub(crate) timestamp: SystemTime,
-    pub(crate) message: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEntry {
+    pub index: u64,
+    pub timestamp: u64,
+    pub message: Option<String>,
+}
+
+impl LogEntry {
+    pub(crate) fn new(index: u64, timestamp: SystemTime, message: Option<String>) -> Self {
+        let timestamp_secs = timestamp
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        Self {
+            index,
+            timestamp: timestamp_secs,
+            message,
+        }
+    }
 }
 
 /// Type of a channel.
@@ -160,27 +175,6 @@ impl ChannelStats {
     }
 }
 
-/// Serializable version of a log entry for JSON responses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SerializableLogEntry {
-    pub timestamp: u64,
-    pub message: Option<String>,
-}
-
-impl From<&LogEntry> for SerializableLogEntry {
-    fn from(entry: &LogEntry) -> Self {
-        let timestamp = entry
-            .timestamp
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        Self {
-            timestamp,
-            message: entry.message.clone(),
-        }
-    }
-}
-
 /// Serializable version of channel statistics for JSON responses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableChannelStats {
@@ -270,7 +264,6 @@ pub(crate) enum StatsEvent {
     },
     MessageReceived {
         id: &'static str,
-        log: Option<String>,
         timestamp: SystemTime,
     },
     Closed {
@@ -290,7 +283,7 @@ type StatsState = (
 /// Global state for statistics collection.
 static STATS_STATE: OnceLock<StatsState> = OnceLock::new();
 
-const DEFAULT_LOG_LIMIT: usize = 100;
+const DEFAULT_LOG_LIMIT: usize = 50;
 
 fn get_log_limit() -> usize {
     std::env::var("CHANNELS_CONSOLE_LOG_LIMIT")
@@ -340,26 +333,27 @@ fn init_stats_state() -> &'static StatsState {
                                 if channel_stats.sent_logs.len() >= limit {
                                     channel_stats.sent_logs.pop_front();
                                 }
-                                channel_stats.sent_logs.push_back(LogEntry {
+                                channel_stats.sent_logs.push_back(LogEntry::new(
+                                    channel_stats.sent_count,
                                     timestamp,
-                                    message: log,
-                                });
+                                    log,
+                                ));
                             }
                         }
-                        StatsEvent::MessageReceived { id, log, timestamp } => {
+                        StatsEvent::MessageReceived { id, timestamp } => {
                             if let Some(channel_stats) = stats.get_mut(id) {
                                 channel_stats.received_count += 1;
                                 channel_stats.update_state();
 
-                                // Store log entry
                                 let limit = get_log_limit();
                                 if channel_stats.received_logs.len() >= limit {
                                     channel_stats.received_logs.pop_front();
                                 }
-                                channel_stats.received_logs.push_back(LogEntry {
+                                channel_stats.received_logs.push_back(LogEntry::new(
+                                    channel_stats.received_count,
                                     timestamp,
-                                    message: log,
-                                });
+                                    None,
+                                ));
                             }
                         }
                         StatsEvent::Closed { id } => {
@@ -535,6 +529,21 @@ cfg_if::cfg_if! {
 ///
 /// Tokio channels don't require this because their capacity is accessible from the channel handles.
 ///
+/// **Message Logging:**
+///
+/// By default, instrumentation only tracks message timestamps. To capture the actual content of messages for debugging,
+/// enable logging with the `log = true` parameter (the message type must implement `std::fmt::Debug`):
+///
+/// ```rust,no_run
+/// use tokio::sync::mpsc;
+/// use channels_console::instrument;
+///
+/// // Enable message logging (requires Debug trait on the message type)
+/// let (tx, rx) = mpsc::channel::<String>(10);
+/// #[cfg(feature = "channels-console")]
+/// let (tx, rx) = channels_console::instrument!((tx, rx), log = true);
+///
+///
 #[macro_export]
 macro_rules! instrument {
     ($expr:expr) => {{
@@ -648,27 +657,30 @@ fn get_serializable_stats() -> Vec<SerializableChannelStats> {
     stats
 }
 
-/// Serializable log response containing both sent and received logs.
+/// Serializable log response containing sent and received logs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelLogs {
     pub id: String,
-    pub sent_logs: Vec<SerializableLogEntry>,
-    pub received_logs: Vec<SerializableLogEntry>,
+    pub sent_logs: Vec<LogEntry>,
+    pub received_logs: Vec<LogEntry>,
 }
 
 pub(crate) fn get_channel_logs(channel_id: &str) -> Option<ChannelLogs> {
     let stats = get_channel_stats();
-    stats.get(channel_id).map(|channel_stats| ChannelLogs {
-        id: channel_id.to_string(),
-        sent_logs: channel_stats
-            .sent_logs
-            .iter()
-            .map(SerializableLogEntry::from)
-            .collect(),
-        received_logs: channel_stats
-            .received_logs
-            .iter()
-            .map(SerializableLogEntry::from)
-            .collect(),
+    stats.get(channel_id).map(|channel_stats| {
+        let mut sent_logs: Vec<LogEntry> = channel_stats.sent_logs.iter().cloned().collect();
+
+        let mut received_logs: Vec<LogEntry> =
+            channel_stats.received_logs.iter().cloned().collect();
+
+        // Sort by index descending (most recent first)
+        sent_logs.sort_by(|a, b| b.index.cmp(&a.index));
+        received_logs.sort_by(|a, b| b.index.cmp(&a.index));
+
+        ChannelLogs {
+            id: channel_id.to_string(),
+            sent_logs,
+            received_logs,
+        }
     })
 }

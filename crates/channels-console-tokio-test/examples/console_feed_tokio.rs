@@ -1,5 +1,25 @@
 use tokio::time::{sleep, Duration};
 
+#[allow(unused)]
+#[derive(Debug)]
+struct UserData {
+    id: u64,
+    name: String,
+    email: String,
+    age: u8,
+}
+
+impl UserData {
+    fn random() -> Self {
+        Self {
+            id: rand::random(),
+            name: format!("User {}", rand::random::<u8>()),
+            email: format!("user{}@example.com", rand::random::<u8>()),
+            age: rand::random(),
+        }
+    }
+}
+
 #[allow(unused_mut)]
 #[tokio::main]
 async fn main() {
@@ -14,69 +34,77 @@ async fn main() {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Channel 1: Fast data stream - unbounded, rapid messages
-    let (tx_fast, mut rx_fast) = tokio::sync::mpsc::unbounded_channel::<i32>();
+    let (tx_fast, mut rx_fast) = tokio::sync::mpsc::unbounded_channel::<String>();
     #[cfg(feature = "channels-console")]
     let (tx_fast, mut rx_fast) =
-        channels_console::instrument!((tx_fast, rx_fast), label = "fast-data-stream");
+        channels_console::instrument!((tx_fast, rx_fast), label = "fast-data-stream", log = true);
 
     // Channel 2: Slow consumer - bounded(5), will back up!
-    let (tx_slow, mut rx_slow) = tokio::sync::mpsc::channel::<String>(5);
+    let (tx_slow, mut rx_slow) = tokio::sync::mpsc::channel::<UserData>(5);
     #[cfg(feature = "channels-console")]
     let (tx_slow, mut rx_slow) =
-        channels_console::instrument!((tx_slow, rx_slow), label = "slow-consumer");
+        channels_console::instrument!((tx_slow, rx_slow), label = "slow-consumer", log = true);
 
     // Channel 3: Burst traffic - bounded(10), bursts every 3 seconds
     let (tx_burst, mut rx_burst) = tokio::sync::mpsc::channel::<u64>(10);
     #[cfg(feature = "channels-console")]
     let (tx_burst, mut rx_burst) =
-        channels_console::instrument!((tx_burst, rx_burst), label = "burst-traffic");
+        channels_console::instrument!((tx_burst, rx_burst), label = "burst-traffic", log = true);
 
     // Channel 4: Gradual flow - bounded(20), increasing rate
     let (tx_gradual, mut rx_gradual) = tokio::sync::mpsc::channel::<f64>(20);
     #[cfg(feature = "channels-console")]
-    let (tx_gradual, mut rx_gradual) = channels_console::instrument!((tx_gradual, rx_gradual));
+    let (tx_gradual, mut rx_gradual) =
+        channels_console::instrument!((tx_gradual, rx_gradual), log = true);
 
     // Channel 5: Dropped early - unbounded, producer dies at 10s
     let (tx_drop_early, mut rx_drop_early) = tokio::sync::mpsc::unbounded_channel::<bool>();
     #[cfg(feature = "channels-console")]
     let (tx_drop_early, mut rx_drop_early) =
-        channels_console::instrument!((tx_drop_early, rx_drop_early));
+        channels_console::instrument!((tx_drop_early, rx_drop_early), log = true);
 
     // Channel 6: Consumer dies - bounded(8), consumer stops at 15s
     let (tx_consumer_dies, mut rx_consumer_dies) = tokio::sync::mpsc::channel::<Vec<u8>>(8);
     #[cfg(feature = "channels-console")]
     let (tx_consumer_dies, mut rx_consumer_dies) = channels_console::instrument!(
         (tx_consumer_dies, rx_consumer_dies),
-        label = "consumer-dies"
+        label = "consumer-dies",
+        log = true
     );
 
     // Channel 7: Steady stream - unbounded, consistent 500ms rate
     let (tx_steady, mut rx_steady) = tokio::sync::mpsc::unbounded_channel::<&str>();
     #[cfg(feature = "channels-console")]
-    let (tx_steady, mut rx_steady) = channels_console::instrument!((tx_steady, rx_steady));
+    let (tx_steady, mut rx_steady) =
+        channels_console::instrument!((tx_steady, rx_steady), log = true);
 
     // Channel 8: Oneshot early - fires at 5 seconds
     let (tx_oneshot_early, rx_oneshot_early) = tokio::sync::oneshot::channel::<String>();
     #[cfg(feature = "channels-console")]
     let (tx_oneshot_early, rx_oneshot_early) =
-        channels_console::instrument!((tx_oneshot_early, rx_oneshot_early));
+        channels_console::instrument!((tx_oneshot_early, rx_oneshot_early), log = true);
 
     // Channel 9: Oneshot mid - fires at 15 seconds
     let (tx_oneshot_mid, rx_oneshot_mid) = tokio::sync::oneshot::channel::<u32>();
     #[cfg(feature = "channels-console")]
     let (tx_oneshot_mid, rx_oneshot_mid) =
-        channels_console::instrument!((tx_oneshot_mid, rx_oneshot_mid));
+        channels_console::instrument!((tx_oneshot_mid, rx_oneshot_mid), log = true);
 
     // Channel 10: Oneshot late - fires at 25 seconds
     let (tx_oneshot_late, rx_oneshot_late) = tokio::sync::oneshot::channel::<i64>();
     #[cfg(feature = "channels-console")]
-    let (tx_oneshot_late, rx_oneshot_late) =
-        channels_console::instrument!((tx_oneshot_late, rx_oneshot_late), label = "oneshot-late");
+    let (tx_oneshot_late, rx_oneshot_late) = channels_console::instrument!(
+        (tx_oneshot_late, rx_oneshot_late),
+        label = "oneshot-late",
+        log = true
+    );
 
     // === Task 1: Fast data stream producer (10ms interval) ===
     tokio::spawn(async move {
+        let messages = ["foo", "baz", "bar"];
         for i in 0..3000 {
-            if tx_fast.send(i).is_err() {
+            let msg = messages[i % messages.len()].to_string();
+            if tx_fast.send(msg).is_err() {
                 break;
             }
             sleep(Duration::from_millis(10)).await;
@@ -94,7 +122,7 @@ async fn main() {
     // === Task 3: Slow consumer producer (fast sends) ===
     tokio::spawn(async move {
         for i in 0..200 {
-            if tx_slow.send(format!("MSG-{}", i)).await.is_err() {
+            if tx_slow.send(UserData::random()).await.is_err() {
                 break;
             }
             sleep(Duration::from_millis(100)).await;
@@ -104,7 +132,7 @@ async fn main() {
     // === Task 4: Slow consumer (very slow, queue backs up!) ===
     tokio::spawn(async move {
         while let Some(msg) = rx_slow.recv().await {
-            println!("Slow consumer processing: {}", msg);
+            println!("Slow consumer processing: {:?}", msg);
             sleep(Duration::from_millis(800)).await; // Much slower than producer!
         }
     });
@@ -255,13 +283,13 @@ async fn main() {
     });
 
     let _progress_handle = tokio::spawn(async move {
-        for i in 0..=30 {
-            println!("Time: {}s / 30s", i);
+        for i in 0..=60 {
+            println!("Time: {}s / 60s", i);
             sleep(Duration::from_secs(1)).await;
         }
     });
 
-    sleep(Duration::from_secs(30)).await;
+    sleep(Duration::from_secs(60)).await;
 
     drop(consumer_dies_handle);
 }

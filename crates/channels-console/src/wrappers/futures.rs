@@ -12,7 +12,7 @@ fn wrap_channel_impl<T, F>(
     channel_id: &'static str,
     label: Option<&'static str>,
     capacity: usize,
-    get_msg_log: F,
+    mut get_msg_log: F,
 ) -> (Sender<T>, Receiver<T>)
 where
     T: Send + 'static,
@@ -40,8 +40,6 @@ where
     // Create a signal channel to notify send-forwarder when outer_rx is closed
     let (close_signal_tx, mut close_signal_rx) = tokio::sync::oneshot::channel::<()>();
 
-    let mut get_msg_log_send = get_msg_log.clone();
-
     // Forward outer -> inner (proxy the send path)
     RT.spawn(async move {
         use futures_util::stream::StreamExt;
@@ -50,7 +48,7 @@ where
                 msg = to_inner_rx.next() => {
                     match msg {
                         Some(msg) => {
-                            let log = get_msg_log_send(&msg);
+                            let log = get_msg_log(&msg);
                             if inner_tx.try_send(msg).is_err() {
                                 to_inner_rx.close();
                                 break;
@@ -75,17 +73,13 @@ where
         let _ = stats_tx_send.send(StatsEvent::Closed { id: channel_id });
     });
 
-    let mut get_msg_log_recv = get_msg_log;
-
     // Forward inner -> outer (proxy the recv path)
     RT.spawn(async move {
         use futures_util::stream::StreamExt;
         while let Some(msg) = inner_rx.next().await {
-            let log = get_msg_log_recv(&msg);
             if from_inner_tx.try_send(msg).is_ok() {
                 let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                     id: channel_id,
-                    log,
                     timestamp: std::time::SystemTime::now(),
                 });
             } else {
@@ -129,7 +123,7 @@ fn wrap_unbounded_impl<T, F>(
     inner: (UnboundedSender<T>, UnboundedReceiver<T>),
     channel_id: &'static str,
     label: Option<&'static str>,
-    get_msg_log: F,
+    mut get_msg_log: F,
 ) -> (UnboundedSender<T>, UnboundedReceiver<T>)
 where
     T: Send + 'static,
@@ -157,8 +151,6 @@ where
     // Create a signal channel to notify send-forwarder when outer_rx is closed
     let (close_signal_tx, mut close_signal_rx) = tokio::sync::oneshot::channel::<()>();
 
-    let mut get_msg_log_send = get_msg_log.clone();
-
     // Forward outer -> inner (proxy the send path)
     RT.spawn(async move {
         use futures_util::stream::StreamExt;
@@ -167,7 +159,7 @@ where
                 msg = to_inner_rx.next() => {
                     match msg {
                         Some(msg) => {
-                            let log = get_msg_log_send(&msg);
+                            let log = get_msg_log(&msg);
                             if inner_tx.unbounded_send(msg).is_err() {
                                 to_inner_rx.close();
                                 break;
@@ -192,17 +184,13 @@ where
         let _ = stats_tx_send.send(StatsEvent::Closed { id: channel_id });
     });
 
-    let mut get_msg_log_recv = get_msg_log;
-
     // Forward inner -> outer (proxy the recv path)
     RT.spawn(async move {
         use futures_util::stream::StreamExt;
         while let Some(msg) = inner_rx.next().await {
-            let log = get_msg_log_recv(&msg);
             if from_inner_tx.unbounded_send(msg).is_ok() {
                 let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                     id: channel_id,
-                    log,
                     timestamp: std::time::SystemTime::now(),
                 });
             } else {
@@ -241,7 +229,7 @@ fn wrap_oneshot_impl<T, F>(
     inner: (oneshot::Sender<T>, oneshot::Receiver<T>),
     channel_id: &'static str,
     label: Option<&'static str>,
-    get_msg_log: F,
+    mut get_msg_log: F,
 ) -> (oneshot::Sender<T>, oneshot::Receiver<T>)
 where
     T: Send + 'static,
@@ -269,8 +257,6 @@ where
     // Create a signal channel to notify send-forwarder when outer_rx is closed
     let (close_signal_tx, mut close_signal_rx) = tokio::sync::oneshot::channel::<()>();
 
-    let mut get_msg_log_recv = get_msg_log.clone();
-
     // Monitor outer receiver and drop inner receiver when outer is dropped
     RT.spawn(async move {
         let mut inner_rx = Some(inner_rx);
@@ -280,11 +266,9 @@ where
                 // Message received from inner
                 match msg {
                     Ok(msg) => {
-                        let log = get_msg_log_recv(&msg);
                         if inner_tx_proxy.send(msg).is_ok() {
                             let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                                 id: channel_id,
-                                log,
                                 timestamp: std::time::SystemTime::now(),
                             });
                             message_received = true;
@@ -315,8 +299,6 @@ where
         }
     });
 
-    let mut get_msg_log_send = get_msg_log;
-
     // Forward outer -> inner (proxy the send path)
     RT.spawn(async move {
         let mut message_sent = false;
@@ -324,7 +306,7 @@ where
             msg = outer_rx_proxy => {
                 match msg {
                     Ok(msg) => {
-                        let log = get_msg_log_send(&msg);
+                        let log = get_msg_log(&msg);
                         if inner_tx.send(msg).is_ok() {
                             let _ = stats_tx_send.send(StatsEvent::MessageSent {
                                 id: channel_id,

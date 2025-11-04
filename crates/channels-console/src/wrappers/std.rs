@@ -4,18 +4,16 @@ use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use crate::{init_stats_state, ChannelType, StatsEvent};
 
 /// Internal implementation for wrapping bounded std channels with optional logging.
-fn wrap_sync_channel_impl<T, F1, F2>(
+fn wrap_sync_channel_impl<T, F>(
     inner: (SyncSender<T>, Receiver<T>),
     channel_id: &'static str,
     label: Option<&'static str>,
     capacity: usize,
-    mut log_on_send: F1,
-    mut log_on_recv: F2,
+    mut log_on_send: F,
 ) -> (SyncSender<T>, Receiver<T>)
 where
     T: Send + 'static,
-    F1: FnMut(&T) -> Option<String> + Send + 'static,
-    F2: FnMut(&T) -> Option<String> + Send + 'static,
+    F: FnMut(&T) -> Option<String> + Send + 'static,
 {
     let (inner_tx, inner_rx) = inner;
     let type_name = std::any::type_name::<T>();
@@ -88,7 +86,6 @@ where
     // Forward inner -> outer (proxy the recv path)
     std::thread::spawn(move || {
         while let Ok(msg) = inner_rx.recv() {
-            let log = log_on_recv(&msg);
             if from_inner_tx.send(msg).is_err() {
                 // Outer receiver was closed
                 let _ = close_signal_tx.send(());
@@ -96,7 +93,6 @@ where
             }
             let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                 id: channel_id,
-                log,
                 timestamp: std::time::SystemTime::now(),
             });
         }
@@ -115,7 +111,7 @@ pub(crate) fn wrap_sync_channel<T: Send + 'static>(
     label: Option<&'static str>,
     capacity: usize,
 ) -> (SyncSender<T>, Receiver<T>) {
-    wrap_sync_channel_impl(inner, channel_id, label, capacity, |_| None, |_| None)
+    wrap_sync_channel_impl(inner, channel_id, label, capacity, |_| None)
 }
 
 /// Wrap a bounded std channel with logging enabled. Returns (outer_tx, outer_rx).
@@ -125,28 +121,21 @@ pub(crate) fn wrap_sync_channel_log<T: Send + std::fmt::Debug + 'static>(
     label: Option<&'static str>,
     capacity: usize,
 ) -> (SyncSender<T>, Receiver<T>) {
-    wrap_sync_channel_impl(
-        inner,
-        channel_id,
-        label,
-        capacity,
-        |msg| Some(format!("{:?}", msg)),
-        |msg| Some(format!("{:?}", msg)),
-    )
+    wrap_sync_channel_impl(inner, channel_id, label, capacity, |msg| {
+        Some(format!("{:?}", msg))
+    })
 }
 
 /// Internal implementation for wrapping unbounded std channels with optional logging.
-fn wrap_channel_impl<T, F1, F2>(
+fn wrap_channel_impl<T, F>(
     inner: (Sender<T>, Receiver<T>),
     channel_id: &'static str,
     label: Option<&'static str>,
-    mut log_on_send: F1,
-    mut log_on_recv: F2,
+    mut log_on_send: F,
 ) -> (Sender<T>, Receiver<T>)
 where
     T: Send + 'static,
-    F1: FnMut(&T) -> Option<String> + Send + 'static,
-    F2: FnMut(&T) -> Option<String> + Send + 'static,
+    F: FnMut(&T) -> Option<String> + Send + 'static,
 {
     let (inner_tx, inner_rx) = inner;
     let type_name = std::any::type_name::<T>();
@@ -219,7 +208,6 @@ where
     // Forward inner -> outer (proxy the recv path)
     std::thread::spawn(move || {
         while let Ok(msg) = inner_rx.recv() {
-            let log = log_on_recv(&msg);
             if from_inner_tx.send(msg).is_err() {
                 // Outer receiver was closed
                 let _ = close_signal_tx.send(());
@@ -227,7 +215,6 @@ where
             }
             let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                 id: channel_id,
-                log,
                 timestamp: std::time::SystemTime::now(),
             });
         }
@@ -244,7 +231,7 @@ pub(crate) fn wrap_channel<T: Send + 'static>(
     channel_id: &'static str,
     label: Option<&'static str>,
 ) -> (Sender<T>, Receiver<T>) {
-    wrap_channel_impl(inner, channel_id, label, |_| None, |_| None)
+    wrap_channel_impl(inner, channel_id, label, |_| None)
 }
 
 /// Wrap an unbounded std channel with logging enabled. Returns (outer_tx, outer_rx).
@@ -253,13 +240,7 @@ pub(crate) fn wrap_channel_log<T: Send + std::fmt::Debug + 'static>(
     channel_id: &'static str,
     label: Option<&'static str>,
 ) -> (Sender<T>, Receiver<T>) {
-    wrap_channel_impl(
-        inner,
-        channel_id,
-        label,
-        |msg| Some(format!("{:?}", msg)),
-        |msg| Some(format!("{:?}", msg)),
-    )
+    wrap_channel_impl(inner, channel_id, label, |msg| Some(format!("{:?}", msg)))
 }
 
 use crate::Instrument;

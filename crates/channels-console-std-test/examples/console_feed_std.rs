@@ -11,22 +11,30 @@ fn main() {
     thread::sleep(Duration::from_secs(2));
 
     // Channel 1: Fast data stream - unbounded, rapid messages
-    let (tx_fast, rx_fast) = std::sync::mpsc::channel::<i32>();
+    let (tx_fast, rx_fast) = std::sync::mpsc::channel::<String>();
     #[cfg(feature = "channels-console")]
     let (tx_fast, rx_fast) =
-        channels_console::instrument!((tx_fast, rx_fast), label = "fast-stream");
+        channels_console::instrument!((tx_fast, rx_fast), label = "fast-stream", log = true);
 
     // Channel 2: Slow consumer - bounded(5), will back up!
     let (tx_slow, rx_slow) = std::sync::mpsc::sync_channel::<String>(5);
     #[cfg(feature = "channels-console")]
-    let (tx_slow, rx_slow) =
-        channels_console::instrument!((tx_slow, rx_slow), label = "slow-consumer", capacity = 5);
+    let (tx_slow, rx_slow) = channels_console::instrument!(
+        (tx_slow, rx_slow),
+        label = "slow-consumer",
+        capacity = 5,
+        log = true
+    );
 
     // Channel 3: Burst traffic - bounded(10), bursts every 3 seconds
     let (tx_burst, rx_burst) = std::sync::mpsc::sync_channel::<u64>(10);
     #[cfg(feature = "channels-console")]
-    let (tx_burst, rx_burst) =
-        channels_console::instrument!((tx_burst, rx_burst), label = "burst-traffic", capacity = 10);
+    let (tx_burst, rx_burst) = channels_console::instrument!(
+        (tx_burst, rx_burst),
+        label = "burst-traffic",
+        capacity = 10,
+        log = true
+    );
 
     // Channel 4: Gradual flow - bounded(20), increasing rate
     let (tx_gradual, rx_gradual) = std::sync::mpsc::sync_channel::<f64>(20);
@@ -34,14 +42,18 @@ fn main() {
     let (tx_gradual, rx_gradual) = channels_console::instrument!(
         (tx_gradual, rx_gradual),
         label = "gradual-flow",
-        capacity = 20
+        capacity = 20,
+        log = true
     );
 
     // Channel 5: Dropped early - unbounded, producer dies at 10s
     let (tx_drop_early, rx_drop_early) = std::sync::mpsc::channel::<bool>();
     #[cfg(feature = "channels-console")]
-    let (tx_drop_early, rx_drop_early) =
-        channels_console::instrument!((tx_drop_early, rx_drop_early), label = "dropped-early");
+    let (tx_drop_early, rx_drop_early) = channels_console::instrument!(
+        (tx_drop_early, rx_drop_early),
+        label = "dropped-early",
+        log = true
+    );
 
     // Channel 6: Consumer dies - bounded(8), consumer stops at 15s
     let (tx_consumer_dies, rx_consumer_dies) = std::sync::mpsc::sync_channel::<Vec<u8>>(8);
@@ -49,19 +61,22 @@ fn main() {
     let (tx_consumer_dies, rx_consumer_dies) = channels_console::instrument!(
         (tx_consumer_dies, rx_consumer_dies),
         label = "consumer-dies",
-        capacity = 8
+        capacity = 8,
+        log = true
     );
 
     // Channel 7: Steady stream - unbounded, consistent 500ms rate
     let (tx_steady, rx_steady) = std::sync::mpsc::channel::<&str>();
     #[cfg(feature = "channels-console")]
     let (tx_steady, rx_steady) =
-        channels_console::instrument!((tx_steady, rx_steady), label = "steady-stream");
+        channels_console::instrument!((tx_steady, rx_steady), label = "steady-stream", log = true);
 
     // === Task 1: Fast data stream producer (10ms interval) ===
     thread::spawn(move || {
+        let messages = ["foo", "baz", "bar"];
         for i in 0..3000 {
-            if tx_fast.send(i).is_err() {
+            let msg = messages[i % messages.len()].to_string();
+            if tx_fast.send(msg).is_err() {
                 break;
             }
             thread::sleep(Duration::from_millis(10));
@@ -204,11 +219,11 @@ fn main() {
 
     // === Task 15: Timer (progress indicator) ===
     thread::spawn(move || {
-        for i in 0..=30 {
-            println!("Time: {}s / 30s", i);
+        for i in 0..=60 {
+            println!("Time: {}s / 60s", i);
             thread::sleep(Duration::from_secs(1));
         }
     });
 
-    thread::sleep(Duration::from_secs(30));
+    thread::sleep(Duration::from_secs(60));
 }

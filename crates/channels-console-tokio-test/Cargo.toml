@@ -11,6 +11,7 @@ channels-console = { workspace = true, optional = true, features = ["tokio"] }
 tracing-subscriber = { version = "0.3", features = ["time", "env-filter"] }
 futures-channel = "0.3"
 futures-util = "0.3"
+rand = "0.9.2"
 
 [features]
 channels-console = ["dep:channels-console"]
