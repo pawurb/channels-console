@@ -232,14 +232,19 @@ impl ChannelStats {
         }
     }
 
-    /// Update the channel state based on sent/received counts.
-    /// Sets state to Full if sent > received, otherwise Active (unless explicitly closed).
     fn update_state(&mut self) {
         if self.state == ChannelState::Closed || self.state == ChannelState::Notified {
             return;
         }
 
-        if self.sent_count > self.received_count {
+        let queued = self.queued();
+        let is_full = match self.channel_type {
+            ChannelType::Bounded(cap) => queued >= cap as u64,
+            ChannelType::Oneshot => queued >= 1,
+            ChannelType::Unbounded => false,
+        };
+
+        if is_full {
             self.state = ChannelState::Full;
         } else {
             self.state = ChannelState::Active;

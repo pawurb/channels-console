@@ -97,7 +97,7 @@ fn truncate_left(s: &str, max_len: usize) -> String {
     }
 }
 
-fn usage_bar(queued: u64, channel_type: &ChannelType, width: usize) -> Cell<'static> {
+fn usage_bar(queued: u64, channel_type: &ChannelType, _width: usize) -> Cell<'static> {
     let capacity = match channel_type {
         ChannelType::Bounded(cap) => Some(*cap),
         ChannelType::Oneshot => Some(1),
@@ -107,12 +107,8 @@ fn usage_bar(queued: u64, channel_type: &ChannelType, width: usize) -> Cell<'sta
     match capacity {
         Some(cap) if cap > 0 => {
             let percentage = (queued as f64 / cap as f64 * 100.0).min(100.0);
-            let filled = ((queued as f64 / cap as f64) * width as f64).round() as usize;
-            let filled = filled.min(width);
-            let empty = width.saturating_sub(filled);
 
-            let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
-            let text = format!("{} [{}/{}]", bar, queued, cap);
+            let text = format!("[{}/{}]", queued, cap);
 
             let color = if percentage >= 100.0 {
                 Color::Red
@@ -124,7 +120,7 @@ fn usage_bar(queued: u64, channel_type: &ChannelType, width: usize) -> Cell<'sta
 
             Cell::from(text).style(Style::default().fg(color))
         }
-        _ => Cell::from(format!("{} N/A", "░".repeat(width))),
+        _ => Cell::from("N/A"),
     }
 }
 
@@ -460,18 +456,18 @@ impl App {
                     Cell::from(stat.received_count.to_string()),
                     Cell::from(stat.queued.to_string()),
                     Cell::from(format_bytes(stat.queued_bytes)),
-                    usage_bar(stat.queued, &stat.channel_type, 10),
+                    usage_bar(stat.queued, &stat.channel_type, 8),
                 ])
             })
             .collect();
 
         let widths = [
-            Constraint::Percentage(22), // Channel
-            Constraint::Percentage(11), // Type
+            Constraint::Percentage(24), // Channel
+            Constraint::Percentage(12), // Type
             Constraint::Percentage(9),  // State
             Constraint::Percentage(7),  // Sent
             Constraint::Percentage(9),  // Mem
-            Constraint::Percentage(8),  // Received
+            Constraint::Percentage(9),  // Received
             Constraint::Percentage(7),  // Queued
             Constraint::Percentage(9),  // Mem
             Constraint::Percentage(14), // Queue
