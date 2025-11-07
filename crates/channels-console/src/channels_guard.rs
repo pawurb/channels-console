@@ -2,7 +2,9 @@ use std::time::Instant;
 
 use prettytable::{Cell, Row, Table};
 
-use crate::{format_bytes, get_channel_stats, get_serializable_stats, resolve_label, Format};
+use crate::{
+    format_bytes, get_serializable_stats, get_sorted_channel_stats, resolve_label, Format,
+};
 
 /// Builder for creating a ChannelsGuard with custom configuration.
 ///
@@ -116,7 +118,7 @@ impl Default for ChannelsGuard {
 impl Drop for ChannelsGuard {
     fn drop(&mut self) {
         let elapsed = self.start_time.elapsed();
-        let stats = get_channel_stats();
+        let stats = get_sorted_channel_stats();
 
         if stats.is_empty() {
             println!("\nNo instrumented channels found.");
@@ -138,15 +140,7 @@ impl Drop for ChannelsGuard {
                     Cell::new("Mem"),
                 ]));
 
-                let mut sorted_stats: Vec<_> = stats.into_iter().collect();
-                sorted_stats.sort_by(|a, b| {
-                    // Sort by source first, then by iter number
-                    a.1.source
-                        .cmp(b.1.source)
-                        .then_with(|| a.1.iter.cmp(&b.1.iter))
-                });
-
-                for (_key, channel_stats) in sorted_stats {
+                for channel_stats in stats {
                     let label = resolve_label(
                         channel_stats.source,
                         channel_stats.label,

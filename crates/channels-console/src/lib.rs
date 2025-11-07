@@ -184,6 +184,7 @@ pub struct SerializableChannelStats {
     pub id: u64,
     pub source: String,
     pub label: String,
+    pub has_custom_label: bool,
     pub channel_type: ChannelType,
     pub state: ChannelState,
     pub sent_count: u64,
@@ -203,6 +204,7 @@ impl From<&ChannelStats> for SerializableChannelStats {
             id: stats.id,
             source: stats.source.to_string(),
             label,
+            has_custom_label: stats.label.is_some(),
             channel_type: stats.channel_type,
             state: stats.state,
             sent_count: stats.sent_count,
@@ -683,15 +685,28 @@ fn get_channel_stats() -> HashMap<u64, ChannelStats> {
     }
 }
 
-fn get_serializable_stats() -> Vec<SerializableChannelStats> {
-    let mut stats: Vec<SerializableChannelStats> = get_channel_stats()
-        .values()
-        .map(SerializableChannelStats::from)
-        .collect();
+/// Compare two ChannelStats for sorting.
+/// Custom labels come first (sorted alphabetically), then auto-generated labels (sorted by source and iter).
+fn compare_channel_stats(a: &ChannelStats, b: &ChannelStats) -> std::cmp::Ordering {
+    match (a.label.is_some(), b.label.is_some()) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        (true, true) => a.label.unwrap().cmp(b.label.unwrap()),
+        (false, false) => a.source.cmp(b.source).then_with(|| a.iter.cmp(&b.iter)),
+    }
+}
 
-    // Sort by source first, then by iter number
-    stats.sort_by(|a, b| a.source.cmp(&b.source).then_with(|| a.iter.cmp(&b.iter)));
+pub(crate) fn get_sorted_channel_stats() -> Vec<ChannelStats> {
+    let mut stats: Vec<ChannelStats> = get_channel_stats().into_values().collect();
+    stats.sort_by(compare_channel_stats);
     stats
+}
+
+fn get_serializable_stats() -> Vec<SerializableChannelStats> {
+    get_sorted_channel_stats()
+        .iter()
+        .map(SerializableChannelStats::from)
+        .collect()
 }
 
 /// Serializable log response containing sent and received logs.

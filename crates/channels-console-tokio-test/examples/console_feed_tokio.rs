@@ -142,7 +142,7 @@ async fn main() {
 
     // === Task 3: Slow consumer producer (fast sends) ===
     tokio::spawn(async move {
-        for i in 0..200 {
+        for _ in 0..200 {
             if tx_slow.send(UserData::random()).await.is_err() {
                 break;
             }
