@@ -138,7 +138,7 @@ async fn main() {
     let (tx_fast, mut rx_fast) = tokio::sync::mpsc::unbounded_channel::<String>();
     #[cfg(feature = "channels-console")]
     let (tx_fast, mut rx_fast) =
-        channels_console::instrument!((tx_fast, rx_fast), label = "fast-data-stream", log = true);
+        channels_console::instrument!((tx_fast, rx_fast), label = "fast-data-stream");
 
     // Channel 2: Slow consumer - bounded(5), will back up!
     let (tx_slow, mut rx_slow) = tokio::sync::mpsc::channel::<UserData>(5);

@@ -26,6 +26,7 @@ pub struct ConsoleArgs {
 enum Focus {
     Channels,
     Logs,
+    Inspect,
 }
 
 struct CachedLogs {
@@ -47,7 +48,6 @@ pub struct App {
     show_logs: bool,
     logs: Option<CachedLogs>,
     paused: bool,
-    inspect_open: bool,
     inspected_log: Option<LogEntry>,
     agent: ureq::Agent,
 }
@@ -73,7 +73,6 @@ impl ConsoleArgs {
             show_logs: false,
             logs: None,
             paused: false,
-            inspect_open: false,
             inspected_log: None,
             agent,
         };
@@ -199,7 +198,7 @@ impl App {
         match key_event.code {
             KeyCode::Char('q') | KeyCode::Char('Q') => self.exit(),
             KeyCode::Char('o') | KeyCode::Char('O') => {
-                if self.inspect_open {
+                if self.focus == Focus::Inspect {
                     self.close_inspect_and_refocus_channels();
                 } else if self.focus == Focus::Logs {
                     // Close logs view when focused on a log entry
@@ -210,7 +209,7 @@ impl App {
             }
             KeyCode::Char('p') | KeyCode::Char('P') => self.toggle_pause(),
             KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                if self.inspect_open {
+                if self.focus == Focus::Inspect {
                     self.close_inspect_only();
                 } else {
                     self.focus_channels();
@@ -220,11 +219,11 @@ impl App {
             KeyCode::Char('i') | KeyCode::Char('I') => self.toggle_inspect(),
             KeyCode::Up | KeyCode::Char('k') => match self.focus {
                 Focus::Channels => self.select_previous(),
-                Focus::Logs => self.select_previous_log(),
+                Focus::Logs | Focus::Inspect => self.select_previous_log(),
             },
             KeyCode::Down | KeyCode::Char('j') => match self.focus {
                 Focus::Channels => self.select_next(),
-                Focus::Logs => self.select_next_log(),
+                Focus::Logs | Focus::Inspect => self.select_next_log(),
             },
             _ => {}
         }
@@ -359,7 +358,7 @@ impl App {
                 self.logs_table_state.select(Some(i));
 
                 // Update inspected log if inspect popup is open
-                if self.inspect_open {
+                if self.focus == Focus::Inspect {
                     if let Some(entry) = cached_logs.logs.sent_logs.get(i) {
                         self.inspected_log = Some(entry.clone());
                     }
@@ -379,7 +378,7 @@ impl App {
                 self.logs_table_state.select(Some(i));
 
                 // Update inspected log if inspect popup is open
-                if self.inspect_open {
+                if self.focus == Focus::Inspect {
                     if let Some(entry) = cached_logs.logs.sent_logs.get(i) {
                         self.inspected_log = Some(entry.clone());
                     }
@@ -389,19 +388,17 @@ impl App {
     }
 
     fn toggle_inspect(&mut self) {
-        if self.focus == Focus::Logs && self.logs_table_state.selected().is_some() {
-            if self.inspect_open {
-                // Closing inspect popup
-                self.inspect_open = false;
-                self.inspected_log = None;
-            } else {
-                // Opening inspect popup - capture the current log entry
-                if let Some(selected) = self.logs_table_state.selected() {
-                    if let Some(ref cached_logs) = self.logs {
-                        if let Some(entry) = cached_logs.logs.sent_logs.get(selected) {
-                            self.inspected_log = Some(entry.clone());
-                            self.inspect_open = true;
-                        }
+        if self.focus == Focus::Inspect {
+            // Closing inspect popup
+            self.focus = Focus::Logs;
+            self.inspected_log = None;
+        } else if self.focus == Focus::Logs && self.logs_table_state.selected().is_some() {
+            // Opening inspect popup - capture the current log entry
+            if let Some(selected) = self.logs_table_state.selected() {
+                if let Some(ref cached_logs) = self.logs {
+                    if let Some(entry) = cached_logs.logs.sent_logs.get(selected) {
+                        self.inspected_log = Some(entry.clone());
+                        self.focus = Focus::Inspect;
                     }
                 }
             }
@@ -409,13 +406,11 @@ impl App {
     }
 
     fn close_inspect_and_refocus_channels(&mut self) {
-        self.inspect_open = false;
         self.inspected_log = None;
         self.hide_logs();
     }
 
     fn close_inspect_only(&mut self) {
-        self.inspect_open = false;
         self.inspected_log = None;
         self.focus = Focus::Channels;
         self.logs_table_state.select(None);
@@ -498,6 +493,33 @@ impl App {
                         "<↑↓←→/jkhl> ".blue().bold(),
                         " | Inspect ".into(),
                         "<i> ".blue().bold(),
+                        " | Pause ".into(),
+                        "<p> ".blue().bold(),
+                    ])
+                }
+            }
+            Focus::Inspect => {
+                if !refresh_status.is_empty() {
+                    Line::from(vec![
+                        " Quit ".into(),
+                        "<q> ".blue().bold(),
+                        " | ".into(),
+                        "<↑↓/jk> ".blue().bold(),
+                        " | Close ".into(),
+                        "<i/o/h> ".blue().bold(),
+                        " | Pause ".into(),
+                        "<p> ".blue().bold(),
+                        " | ".into(),
+                        refresh_status.yellow(),
+                    ])
+                } else {
+                    Line::from(vec![
+                        " Quit ".into(),
+                        "<q> ".blue().bold(),
+                        " | ".into(),
+                        "<↑↓/jk> ".blue().bold(),
+                        " | Close ".into(),
+                        "<i/o/h> ".blue().bold(),
                         " | Pause ".into(),
                         "<p> ".blue().bold(),
                     ])
@@ -638,7 +660,7 @@ impl App {
                 ]);
 
                 // Dim the row if logs are shown and channels table is not focused
-                if self.show_logs && self.focus != Focus::Channels {
+                if self.show_logs && !matches!(self.focus, Focus::Channels) {
                     row.style(Style::default().fg(Color::DarkGray))
                 } else {
                     row
@@ -736,7 +758,7 @@ impl App {
         }
 
         // Render inspect popup on top of everything if open
-        if self.inspect_open {
+        if self.focus == Focus::Inspect {
             if let Some(ref inspected_log) = self.inspected_log {
                 render_inspect_popup(inspected_log, area, frame);
             }
