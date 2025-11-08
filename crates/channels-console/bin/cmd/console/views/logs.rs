@@ -13,11 +13,16 @@ use ratatui::{
 pub(crate) fn render_logs_placeholder(
     channel_label: &str,
     message: &str,
+    channel_position: usize,
+    total_channels: usize,
     area: Rect,
     frame: &mut Frame,
 ) {
     let block = Block::bordered()
-        .title(format!(" {} ", channel_label))
+        .title(format!(
+            " {} [{}/{}] ",
+            channel_label, channel_position, total_channels
+        ))
         .border_set(border::THICK);
 
     let inner_area = block.inner(area);
@@ -35,9 +40,12 @@ pub(crate) fn render_logs_placeholder(
 }
 
 /// Renders the logs panel with sent and received log entries
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_logs_panel(
     cached_logs: &CachedLogs,
     channel_label: &str,
+    channel_position: usize,
+    total_channels: usize,
     area: Rect,
     frame: &mut Frame,
     table_state: &mut TableState,
@@ -50,7 +58,10 @@ pub(crate) fn render_logs_panel(
     };
 
     let block = Block::bordered()
-        .title(format!(" {} ", channel_label))
+        .title(format!(
+            " [{}/{}] {} ",
+            channel_position, total_channels, channel_label
+        ))
         .border_set(border_set)
         .style(if is_focused {
             Style::default()

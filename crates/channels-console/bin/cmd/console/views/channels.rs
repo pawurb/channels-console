@@ -100,7 +100,6 @@ pub(crate) fn render_channels_panel(
             border::PLAIN
         };
         Block::bordered()
-            .title(" Channels ")
             .border_set(border_set)
             .style(if focus == Focus::Channels {
                 Style::default()

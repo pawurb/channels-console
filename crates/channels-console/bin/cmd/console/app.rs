@@ -4,10 +4,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use eyre::Result;
 use ratatui::{
     layout::{Constraint, Layout},
-    style::Stylize,
-    symbols::border,
-    text::Line,
-    widgets::{Block, TableState},
+    widgets::TableState,
     DefaultTerminal, Frame,
 };
 use std::io;
@@ -15,9 +12,9 @@ use std::time::{Duration, Instant};
 
 use super::http::{fetch_logs, fetch_metrics};
 use super::state::{CachedLogs, Focus};
-use super::views::channels::render_channels_panel;
-use super::views::inspect::render_inspect_popup;
-use super::views::logs::{render_logs_panel, render_logs_placeholder};
+use super::views::bottom_bar::render_bottom_bar;
+use super::views::main_view::render_main_view;
+use super::views::top_bar::render_top_bar;
 
 #[derive(Debug, Parser)]
 pub struct ConsoleArgs {
@@ -269,12 +266,12 @@ impl App {
     }
 
     fn focus_logs(&mut self) {
-        if self.show_logs && !self.stats.is_empty() {
-            // Only allow focus if there are actual logs to display
+        if !self.show_logs {
+            self.toggle_logs();
+        } else if !self.stats.is_empty() {
             if let Some(ref cached_logs) = self.logs {
                 if !cached_logs.logs.sent_logs.is_empty() {
                     self.focus = Focus::Logs;
-                    // Ensure logs table has a valid selection
                     if self.logs_table_state.selected().is_none() {
                         self.logs_table_state.select(Some(0));
                     }
@@ -360,247 +357,43 @@ impl App {
 impl App {
     fn render_ui(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        let title = Line::from(" Channels Console ".bold());
 
-        let refresh_status = if self.paused {
-            "⏸ PAUSED ".to_string()
-        } else if let Some(last_fetch) = self.last_successful_fetch {
-            let elapsed = Instant::now().duration_since(last_fetch);
-            let seconds = elapsed.as_secs();
+        // Create 3-row vertical layout: top bar, main view, bottom bar
+        let chunks = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Top bar
+                Constraint::Min(0),    // Main view (fills remaining space)
+                Constraint::Length(3), // Bottom bar
+            ])
+            .split(area);
 
-            let is_stale = self.error.is_some() && !self.stats.is_empty();
-
-            if is_stale {
-                format!("⚠ {}s ", seconds)
-            } else {
-                format!("🔄 {}s ", seconds)
-            }
-        } else {
-            String::new()
-        };
-
-        let bottom_line = match self.focus {
-            Focus::Channels => {
-                if !refresh_status.is_empty() {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓←→/jkhl> ".blue().bold(),
-                        " | Logs ".into(),
-                        "<o> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                        " | ".into(),
-                        refresh_status.yellow(),
-                    ])
-                } else {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓←→/jkhl> ".blue().bold(),
-                        " | Logs ".into(),
-                        "<o> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                    ])
-                }
-            }
-            Focus::Logs => {
-                if !refresh_status.is_empty() {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓←→/jkhl> ".blue().bold(),
-                        " | Inspect ".into(),
-                        "<i> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                        " | ".into(),
-                        refresh_status.yellow(),
-                    ])
-                } else {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓←→/jkhl> ".blue().bold(),
-                        " | Inspect ".into(),
-                        "<i> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                    ])
-                }
-            }
-            Focus::Inspect => {
-                if !refresh_status.is_empty() {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓/jk> ".blue().bold(),
-                        " | Close ".into(),
-                        "<i/o/h> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                        " | ".into(),
-                        refresh_status.yellow(),
-                    ])
-                } else {
-                    Line::from(vec![
-                        " Quit ".into(),
-                        "<q> ".blue().bold(),
-                        " | ".into(),
-                        "<↑↓/jk> ".blue().bold(),
-                        " | Close ".into(),
-                        "<i/o/h> ".blue().bold(),
-                        " | Pause ".into(),
-                        "<p> ".blue().bold(),
-                    ])
-                }
-            }
-        };
-
-        #[cfg(feature = "dev")]
-        let block = {
-            let render_time_ms = self.last_render_duration.as_millis();
-            let render_time_text = if render_time_ms < 10 {
-                format!("  {}ms ", render_time_ms)
-            } else {
-                format!(" {}ms ", render_time_ms)
-            };
-
-            Block::bordered()
-                .title(title.centered())
-                .title_bottom(bottom_line.centered())
-                .title_bottom(Line::from(render_time_text).cyan().right_aligned())
-                .border_set(border::THICK)
-        };
-
-        #[cfg(not(feature = "dev"))]
-        let block = Block::bordered()
-            .title(title.centered())
-            .title_bottom(bottom_line.centered())
-            .border_set(border::THICK);
-
-        if let Some(ref error_msg) = self.error {
-            if self.stats.is_empty() {
-                let error_text = vec![
-                    Line::from(""),
-                    Line::from("Error").red().bold().centered(),
-                    Line::from(""),
-                    Line::from(error_msg.as_str()).red().centered(),
-                    Line::from(""),
-                    Line::from(format!(
-                        "Make sure the metrics server is running on http://127.0.0.1:{}",
-                        self.metrics_port
-                    ))
-                    .yellow()
-                    .centered(),
-                ];
-
-                frame.render_widget(
-                    ratatui::widgets::Paragraph::new(error_text).block(block),
-                    area,
-                );
-                return;
-            }
-        }
-
-        if self.stats.is_empty() {
-            let empty_text = vec![
-                Line::from(""),
-                Line::from("No channel statistics found")
-                    .yellow()
-                    .centered(),
-                Line::from(""),
-                Line::from("Make sure channels are instrumented and the server is running")
-                    .centered(),
-            ];
-
-            frame.render_widget(
-                ratatui::widgets::Paragraph::new(empty_text).block(block),
-                area,
-            );
-            return;
-        }
-
-        let inner_area = block.inner(area);
-        frame.render_widget(block, area);
-
-        // Split the inner area if logs are being shown
-        let (table_area, logs_area) = if self.show_logs {
-            let chunks = Layout::default()
-                .direction(ratatui::layout::Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(inner_area);
-            (chunks[0], Some(chunks[1]))
-        } else {
-            (inner_area, None)
-        };
-
-        render_channels_panel(
-            &self.stats,
-            table_area,
+        // Render top status bar
+        render_top_bar(
             frame,
-            &mut self.table_state,
-            self.show_logs,
-            self.focus,
+            chunks[0],
+            self.paused,
+            self.last_successful_fetch,
+            self.error.is_some(),
+            !self.stats.is_empty(),
         );
 
-        // Render logs panel if visible
-        if let Some(logs_area) = logs_area {
-            let channel_label = self
-                .table_state
-                .selected()
-                .and_then(|i| self.stats.get(i))
-                .map(|stat| {
-                    if stat.label.is_empty() {
-                        stat.id.to_string()
-                    } else {
-                        stat.label.clone()
-                    }
-                })
-                .unwrap_or_else(|| "Unknown".to_string());
+        // Render main content area
+        render_main_view(
+            frame,
+            chunks[1],
+            &self.stats,
+            &self.error,
+            self.metrics_port,
+            &mut self.table_state,
+            &mut self.logs_table_state,
+            self.focus,
+            self.show_logs,
+            &self.logs,
+            self.paused,
+            &self.inspected_log,
+        );
 
-            if let Some(ref cached_logs) = self.logs {
-                let has_missing_log = cached_logs
-                    .logs
-                    .sent_logs
-                    .iter()
-                    .any(|entry| entry.message.is_none());
-                let display_label = if has_missing_log {
-                    format!("{} (missing \"log = true\")", channel_label)
-                } else {
-                    channel_label
-                };
-                render_logs_panel(
-                    cached_logs,
-                    &display_label,
-                    logs_area,
-                    frame,
-                    &mut self.logs_table_state,
-                    self.focus == Focus::Logs,
-                );
-            } else {
-                let message = if self.paused {
-                    "(refresh paused)"
-                } else if self.error.is_some() {
-                    "(cannot fetch new data)"
-                } else {
-                    "(no data)"
-                };
-                render_logs_placeholder(&channel_label, message, logs_area, frame);
-            }
-        }
-
-        // Render inspect popup on top of everything if open
-        if self.focus == Focus::Inspect {
-            if let Some(ref inspected_log) = self.inspected_log {
-                render_inspect_popup(inspected_log, area, frame);
-            }
-        }
+        render_bottom_bar(frame, chunks[2], self.focus);
     }
 }
