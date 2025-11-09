@@ -31,6 +31,7 @@ channels-console = []
 tui = ["dep:crossterm", "dep:ratatui", "dep:clap", "dep:colored", "dep:ureq", "dep:chrono"]
 tokio = ["dep:tokio"]
 futures = ["dep:tokio", "dep:futures-channel"]
+crossbeam = []
 dev = []
 
 [dev-dependencies]

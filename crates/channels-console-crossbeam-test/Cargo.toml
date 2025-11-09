@@ -1,0 +1,16 @@
+[package]
+name = "channels-console-crossbeam-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+channels-console = { workspace = true, optional = true, features = ["crossbeam"] }
+crossbeam-channel = "0.5"
+
+[features]
+channels-console = ["dep:channels-console"]
+
+[dev-dependencies]
+ureq = { version = "2", features = ["json"] }
+serde_json = "1.0"

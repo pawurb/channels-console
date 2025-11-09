@@ -5,7 +5,8 @@
 
 A lightweight, easy-to-use tool for real-time visibility into your Rust channels. Inspect live message contents and observe how channels interact to better understand data flow. Track queue depth, delay, throughput, and memory usage to spot channel-related bottlenecks.
 
-Supports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio) and [futures-rs](https://github.com/rust-lang/futures-rs) channels - with more on the way.
+Supports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html), [Tokio](https://github.com/tokio-rs/tokio), [futures-rs](https://github.com/rust-lang/futures-rs), and [crossbeam](https://github.com/crossbeam-rs/crossbeam) channels - with more on the way.
+
 ## Features
 
 - **Zero-cost when disabled** — fully gated by a feature flag
@@ -19,7 +20,7 @@ Supports [std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html),
 `Cargo.toml`
 
 ```toml
-channels-console = { version = "0.2", optional = true, features=['tokio', 'futures'] }
+channels-console = { version = "0.2", optional = true, features=['tokio', 'futures', 'crossbeam'] }
 
 [features]
 channels-console = ["dep:channels-console"]
@@ -27,7 +28,7 @@ channels-console = ["dep:channels-console"]
 
 This config ensures that the lib has **zero** overhead unless explicitly enabled via a `channels-console` feature.
 
-[std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html) channels can be instrumented by default. Enable `tokio` and `futures` features for [Tokio](https://github.com/tokio-rs/tokio) and [futures-rs](https://github.com/rust-lang/futures-rs) channels, respectively.
+[std::sync](https://doc.rust-lang.org/stable/std/sync/mpsc/index.html) channels can be instrumented by default. Enable `tokio`, `futures`, or `crossbeam` features for [Tokio](https://github.com/tokio-rs/tokio), [futures-rs](https://github.com/rust-lang/futures-rs), and [crossbeam](https://github.com/crossbeam-rs/crossbeam) channels, respectively.
 
 Next use `instrument!` macro to monitor selected channels:
 
@@ -127,8 +128,12 @@ This library has just been released. I've tested it with several apps, [big](htt
 
 #### Futures Channels
 - [`futures_channel::mpsc::channel`](https://docs.rs/futures-channel/latest/futures_channel/mpsc/fn.channel.html)
-- [`futures_channel::mpsc::unbounded`](https://docs.rs/futures-channel/latest/futures_channel/mpsc/fn.unbounded.html) 
-- [`futures_channel::oneshot::channel`](https://docs.rs/futures-channel/latest/futures_channel/oneshot/fn.channel.html) 
+- [`futures_channel::mpsc::unbounded`](https://docs.rs/futures-channel/latest/futures_channel/mpsc/fn.unbounded.html)
+- [`futures_channel::oneshot::channel`](https://docs.rs/futures-channel/latest/futures_channel/oneshot/fn.channel.html)
+
+#### Crossbeam Channels
+- [`crossbeam_channel::bounded`](https://docs.rs/crossbeam/latest/crossbeam/channel/fn.bounded.html)
+- [`crossbeam_channel::unbounded`](https://docs.rs/crossbeam/latest/crossbeam/channel/fn.unbounded.html)
 
 _I'm planning to support more channel types. PRs are welcome!_
 
@@ -200,7 +205,16 @@ let (tx, rx) = mpsc::channel::<String>(10);
 let (tx, rx) = channels_console::instrument!((tx, rx), capacity = 10);
 ```
 
-Tokio channels don't require the capacity parameter because their capacity is accessible from the channel handles.
+```rust
+use crossbeam_channel;
+
+// crossbeam bounded channel - MUST specify capacity
+let (tx, rx) = crossbeam_channel::bounded::<String>(10);
+#[cfg(feature = "channels-console")]
+let (tx, rx) = channels_console::instrument!((tx, rx), capacity = 10);
+```
+
+Tokio and crossbeam channels don't require the capacity parameter because their capacity is accessible from the channel handles. 
 
 **Message Logging:**
 
