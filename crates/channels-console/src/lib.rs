@@ -541,7 +541,7 @@ cfg_if::cfg_if! {
 /// let (tx, rx) = channels_console::instrument!((tx, rx), label = "task-queue");
 /// ```
 ///
-/// # Important: Capacity Parameter
+/// ## Capacity Parameter
 ///
 /// **For `std::sync::mpsc` and `futures::channel::mpsc` bounded channels**, you **must** specify the `capacity` parameter
 /// because their APIs don't expose the capacity after creation:
@@ -561,7 +561,7 @@ cfg_if::cfg_if! {
 ///
 /// Tokio channels don't require this because their capacity is accessible from the channel handles.
 ///
-/// **Message Logging:**
+/// ## Message Logging
 ///
 /// By default, instrumentation only tracks message timestamps. To capture the actual content of messages for debugging,
 /// enable logging with the `log = true` parameter (the message type must implement `std::fmt::Debug`):
