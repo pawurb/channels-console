@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::cmd::console::state::{CachedLogs, Focus};
+use crate::cmd::console::app::{CachedLogs, Focus};
 
 use super::channels::render_channels_panel;
 use super::inspect::render_inspect_popup;

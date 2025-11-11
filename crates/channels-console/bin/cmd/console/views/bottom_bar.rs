@@ -8,7 +8,7 @@ use ratatui::{
 };
 use std::time::Duration;
 
-use crate::cmd::console::state::Focus;
+use crate::cmd::console::app::Focus;
 
 /// Renders the bottom controls bar showing context-aware keybindings
 pub fn render_bottom_bar(

@@ -1,4 +1,4 @@
-use channels_console::{LogEntry, SerializableChannelStats};
+use channels_console::{ChannelLogs, LogEntry, SerializableChannelStats};
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use eyre::Result;
@@ -7,14 +7,27 @@ use ratatui::{
     widgets::TableState,
     DefaultTerminal, Frame,
 };
-use std::io;
 use std::time::{Duration, Instant};
+use std::{collections::HashMap, io};
 
 use super::http::{fetch_logs, fetch_metrics};
-use super::state::{CachedLogs, Focus};
 use super::views::bottom_bar::render_bottom_bar;
 use super::views::main_view::render_main_view;
 use super::views::top_bar::render_top_bar;
+
+/// Represents which UI component has focus
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Focus {
+    Channels,
+    Logs,
+    Inspect,
+}
+
+/// Cached logs with a lookup map for received entries
+pub(crate) struct CachedLogs {
+    pub(crate) logs: ChannelLogs,
+    pub(crate) received_map: HashMap<u64, LogEntry>,
+}
 
 #[derive(Debug, Parser)]
 pub struct ConsoleArgs {

@@ -1,4 +1,4 @@
-use crate::cmd::console::state::Focus;
+use crate::cmd::console::app::Focus;
 use crate::cmd::console::widgets::formatters::{queue_status, truncate_left};
 use channels_console::{format_bytes, ChannelState, ChannelType, SerializableChannelStats};
 use ratatui::{

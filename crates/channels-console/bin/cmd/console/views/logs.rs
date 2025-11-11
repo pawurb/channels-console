@@ -1,4 +1,4 @@
-use crate::cmd::console::state::CachedLogs;
+use crate::cmd::console::app::CachedLogs;
 use crate::cmd::console::widgets::formatters::{format_delay, format_timestamp, truncate_message};
 use ratatui::{
     layout::Rect,
