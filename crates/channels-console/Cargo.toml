@@ -11,8 +11,8 @@ categories = ["development-tools"]
 [dependencies]
 tokio = { version = "1", features = ["sync", "macros", "rt-multi-thread", "time"], optional = true }
 crossbeam-channel = "0.5"
-futures-channel = { version = "0.3", optional = true }
-futures-util = "0.3"
+futures-channel = { version = "0.3", features = ["sink"], optional = true }
+futures-util = { version = "0.3", features = ["sink"] }
 eyre = "0.6"
 prettytable-rs = { version = "0.10", default-features = false }
 tiny_http = "0.12"

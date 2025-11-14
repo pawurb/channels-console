@@ -1,6 +1,7 @@
 use futures_channel::mpsc;
 use futures_channel::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use futures_channel::oneshot;
+use futures_util::sink::SinkExt;
 use std::mem;
 use std::sync::atomic::Ordering;
 
@@ -54,7 +55,7 @@ where
                     match msg {
                         Some(msg) => {
                             let log = get_msg_log(&msg);
-                            if inner_tx.try_send(msg).is_err() {
+                            if inner_tx.send(msg).await.is_err() {
                                 to_inner_rx.close();
                                 break;
                             }
@@ -82,7 +83,7 @@ where
     RT.spawn(async move {
         use futures_util::stream::StreamExt;
         while let Some(msg) = inner_rx.next().await {
-            if from_inner_tx.try_send(msg).is_ok() {
+            if from_inner_tx.send(msg).await.is_ok() {
                 let _ = stats_tx_recv.send(StatsEvent::MessageReceived {
                     id,
                     timestamp: std::time::Instant::now(),

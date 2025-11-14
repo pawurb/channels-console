@@ -270,4 +270,37 @@ pub mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_slow_consumer_no_panic() {
+        let output = Command::new("cargo")
+            .args([
+                "run",
+                "-p",
+                "channels-console-tokio-test",
+                "--example",
+                "slow_consumer_tokio",
+                "--features",
+                "channels-console",
+            ])
+            .output()
+            .expect("Failed to execute command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            output.status.success(),
+            "Command failed with status: {}\nStdout:\n{}\nStderr:\n{}",
+            output.status,
+            stdout,
+            stderr
+        );
+
+        assert!(
+            stdout.contains("Slow consumer example completed!"),
+            "Expected completion message not found.\nOutput:\n{}",
+            stdout
+        );
+    }
 }
