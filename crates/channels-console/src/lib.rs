@@ -593,7 +593,7 @@ macro_rules! instrument {
         $crate::Instrument::instrument($expr, CHANNEL_ID, None, None)
     }};
 
-    ($expr:expr, label = $label:literal) => {{
+    ($expr:expr, label = $label:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         $crate::Instrument::instrument($expr, CHANNEL_ID, Some($label), None)
     }};
@@ -604,13 +604,13 @@ macro_rules! instrument {
         $crate::Instrument::instrument($expr, CHANNEL_ID, None, Some($capacity))
     }};
 
-    ($expr:expr, label = $label:literal, capacity = $capacity:expr) => {{
+    ($expr:expr, label = $label:expr, capacity = $capacity:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::Instrument::instrument($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, capacity = $capacity:expr, label = $label:literal) => {{
+    ($expr:expr, capacity = $capacity:expr, label = $label:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::Instrument::instrument($expr, CHANNEL_ID, Some($label), Some($capacity))
@@ -622,12 +622,12 @@ macro_rules! instrument {
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, None, None)
     }};
 
-    ($expr:expr, label = $label:literal, log = true) => {{
+    ($expr:expr, label = $label:expr, log = true) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), None)
     }};
 
-    ($expr:expr, log = true, label = $label:literal) => {{
+    ($expr:expr, log = true, label = $label:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), None)
     }};
@@ -644,37 +644,37 @@ macro_rules! instrument {
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, None, Some($capacity))
     }};
 
-    ($expr:expr, label = $label:literal, capacity = $capacity:expr, log = true) => {{
+    ($expr:expr, label = $label:expr, capacity = $capacity:expr, log = true) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, label = $label:literal, log = true, capacity = $capacity:expr) => {{
+    ($expr:expr, label = $label:expr, log = true, capacity = $capacity:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, capacity = $capacity:expr, label = $label:literal, log = true) => {{
+    ($expr:expr, capacity = $capacity:expr, label = $label:expr, log = true) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, capacity = $capacity:expr, log = true, label = $label:literal) => {{
+    ($expr:expr, capacity = $capacity:expr, log = true, label = $label:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, log = true, label = $label:literal, capacity = $capacity:expr) => {{
+    ($expr:expr, log = true, label = $label:expr, capacity = $capacity:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
     }};
 
-    ($expr:expr, log = true, capacity = $capacity:expr, label = $label:literal) => {{
+    ($expr:expr, log = true, capacity = $capacity:expr, label = $label:expr) => {{
         const CHANNEL_ID: &'static str = concat!(file!(), ":", line!());
         const _: usize = $capacity;
         $crate::InstrumentLog::instrument_log($expr, CHANNEL_ID, Some($label), Some($capacity))
