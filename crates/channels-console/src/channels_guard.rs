@@ -4,7 +4,7 @@ use prettytable::{Cell, Row, Table};
 
 use crate::{
     format_bytes, get_combined_json, get_sorted_channel_stats, get_sorted_stream_stats,
-    resolve_label, Format, InstrumentedType,
+    resolve_label, Format,
 };
 
 /// Builder for creating a ChannelsGuard with custom configuration.
@@ -154,12 +154,9 @@ impl Drop for ChannelsGuard {
                             channel_stats.label.as_deref(),
                             channel_stats.iter,
                         );
-                        let instrumented_type = InstrumentedType::Channel {
-                            channel_type: channel_stats.channel_type,
-                        };
                         table.add_row(Row::new(vec![
                             Cell::new(&label),
-                            Cell::new(&instrumented_type.to_string()),
+                            Cell::new(&channel_stats.channel_type.to_string()),
                             Cell::new(channel_stats.state.as_str()),
                             Cell::new(&channel_stats.sent_count.to_string()),
                             Cell::new(&channel_stats.received_count.to_string()),

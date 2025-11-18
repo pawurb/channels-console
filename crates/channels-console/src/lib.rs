@@ -33,25 +33,6 @@ impl LogEntry {
     }
 }
 
-/// Type of instrumented object (channel or stream).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum InstrumentedType {
-    #[serde(rename = "channel")]
-    Channel { channel_type: ChannelType },
-    #[serde(rename = "stream")]
-    Stream,
-}
-
-impl std::fmt::Display for InstrumentedType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InstrumentedType::Channel { channel_type } => write!(f, "{}", channel_type),
-            InstrumentedType::Stream => write!(f, "stream"),
-        }
-    }
-}
-
 /// Type of a channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelType {
@@ -237,14 +218,14 @@ pub struct CombinedJson {
     pub streams: Vec<SerializableStreamStats>,
 }
 
-/// Serializable version of channel/stream statistics for JSON responses.
+/// Serializable version of channel statistics for JSON responses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableChannelStats {
     pub id: u64,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
-    pub instrumented_type: InstrumentedType,
+    pub channel_type: ChannelType,
     pub state: ChannelState,
     pub sent_count: u64,
     pub received_count: u64,
@@ -282,9 +263,7 @@ impl From<&ChannelStats> for SerializableChannelStats {
             source: channel_stats.source.to_string(),
             label,
             has_custom_label: channel_stats.label.is_some(),
-            instrumented_type: InstrumentedType::Channel {
-                channel_type: channel_stats.channel_type,
-            },
+            channel_type: channel_stats.channel_type,
             state: channel_stats.state,
             sent_count: channel_stats.sent_count,
             received_count: channel_stats.received_count,
@@ -1116,7 +1095,7 @@ pub struct ChannelLogs {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamLogs {
     pub id: String,
-    pub yielded_logs: Vec<LogEntry>,
+    pub logs: Vec<LogEntry>,
 }
 
 pub(crate) fn get_channel_logs(channel_id: &str) -> Option<ChannelLogs> {
@@ -1150,7 +1129,7 @@ pub(crate) fn get_stream_logs(stream_id: &str) -> Option<StreamLogs> {
 
         StreamLogs {
             id: stream_id.to_string(),
-            yielded_logs,
+            logs: yielded_logs,
         }
     })
 }

@@ -129,12 +129,7 @@ pub mod tests {
                 .into_string()
                 .expect("Failed to read logs response");
 
-            // Verify logs contain yielded items
-            assert!(
-                logs_text.contains("yielded_logs"),
-                "Expected yielded_logs in response.\nGot:\n{}",
-                logs_text
-            );
+            assert!(logs_text.contains("logs"));
         }
 
         let _ = child.kill();

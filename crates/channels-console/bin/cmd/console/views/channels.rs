@@ -1,8 +1,6 @@
 use crate::cmd::console::app::Focus;
 use crate::cmd::console::widgets::formatters::{queue_status, truncate_left};
-use channels_console::{
-    format_bytes, ChannelState, ChannelType, InstrumentedType, SerializableChannelStats,
-};
+use channels_console::{format_bytes, ChannelState, ChannelType, SerializableChannelStats};
 use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
@@ -59,21 +57,15 @@ pub(crate) fn render_channels_panel(
                 }
             };
 
-            let (mem_cell, queue_cell) = match &stat.instrumented_type {
-                InstrumentedType::Channel { channel_type } => {
-                    let mem = match channel_type {
-                        ChannelType::Unbounded => Cell::from("N/A"),
-                        _ => Cell::from(format_bytes(stat.queued_bytes)),
-                    };
-                    let queue = queue_status(stat.queued, channel_type, 8);
-                    (mem, queue)
-                }
-                InstrumentedType::Stream => (Cell::from("N/A"), Cell::from("N/A")),
+            let mem_cell = match &stat.channel_type {
+                ChannelType::Unbounded => Cell::from("N/A"),
+                _ => Cell::from(format_bytes(stat.queued_bytes)),
             };
+            let queue_cell = queue_status(stat.queued, &stat.channel_type, 8);
 
             let row = Row::new(vec![
                 Cell::from(truncate_left(&stat.label, channel_width)),
-                Cell::from(stat.instrumented_type.to_string()),
+                Cell::from(stat.channel_type.to_string()),
                 Cell::from(state_text).style(state_style),
                 Cell::from(stat.sent_count.to_string()),
                 Cell::from(stat.received_count.to_string()),
